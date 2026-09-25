@@ -175,6 +175,12 @@ You can specify various parameters for a more flexible installation, more [detai
 
 </details>
 
+<h2 id="minimize-animation">Optional Windows 11 minimize-animation workaround</h2>
+
+An experimental, opt-in helper is available for a hitch when minimizing maximized
+Spotify on the verified 1.3.1.234 build. It applies only to the current session;
+fully exiting Spotify removes it. See [supported builds, usage and undo](docs/minimize-animation.md).
+
 <h1 id="uninstall">Uninstall</h1>
 
 - Just run [Uninstall.bat](https://raw.githack.com/amd64fox/SpotX/main/Uninstall.bat)
