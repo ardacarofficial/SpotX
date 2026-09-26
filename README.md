@@ -199,6 +199,21 @@ or
 
  Read [FAQ](https://telegra.ph/SpotX-FAQ-09-19)
 
+### Windows 11 taskbar highlight repair
+
+If Spotify's taskbar button is missing its active or hover background, keep
+Spotify running and open [Repair_Taskbar.bat](Repair_Taskbar.bat) from this
+checkout. The helper refreshes only Spotify's taskbar registration through the
+Windows Shell API. It does not reinstall Spotify or alter its patched files.
+`Refreshed` means Windows accepted the refresh; check the resulting appearance.
+Run `scripts/Repair-SpotifyTaskbar.ps1 -WhatIf` to preview the selected window.
+The repair targets the standard `%APPDATA%\Spotify\Spotify.exe` installation
+and requires exactly one visible main Spotify window.
+
+For troubleshooting, `scripts/Get-SpotifyTaskbarDiagnostics.ps1` prints a
+read-only JSON snapshot of Spotify processes, window ownership, window styles,
+and taskbar identity properties. It does not capture window titles or screenshots.
+
 <h1 id="disclaimer">Disclaimer</h1>
 
 SpotX is a tool that modifies the official Spotify client, provided as an evaluation version — use it at your own risk.
