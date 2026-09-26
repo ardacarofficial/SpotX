@@ -175,11 +175,17 @@ You can specify various parameters for a more flexible installation, more [detai
 
 </details>
 
-<h2 id="minimize-animation">Optional Windows 11 minimize-animation workaround</h2>
+<h2 id="minimize-animation">Persistent Windows 11 window repairs in this fork</h2>
 
-An experimental, opt-in helper is available for a hitch when minimizing maximized
-Spotify on the verified 1.3.1.234 build. It applies only to the current session;
-fully exiting Spotify removes it. See [supported builds, usage and undo](docs/minimize-animation.md).
+This fork automatically installs a compiled window helper for the verified
+Spotify 1.3.1.234 Windows 11/x64 build. It refreshes taskbar registration and
+applies the maximize-to-minimize animation guard across Spotify restarts.
+It starts at user sign-in and supervises its repair worker; no background
+PowerShell is needed. Updated CEF builds are skipped safely.
+
+Use this fork's `scripts/Install_Auto.bat`, or run its saved `run.ps1`, to install.
+Add `-window_fixes_off` to skip automatic helper installation.
+See [installation, removal and supported builds](docs/window-helper.md).
 
 <h1 id="uninstall">Uninstall</h1>
 
