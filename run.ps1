@@ -33,6 +33,9 @@ param
     [Parameter(HelpMessage = 'Skip Microsoft Defender exclusions')]
     [switch]$defender_exclusions_off,
 
+    [Parameter(HelpMessage = 'Skip persistent Windows 11 window repairs for the verified x64 Spotify build.')]
+    [switch]$window_fixes_off,
+
     [Parameter(HelpMessage = "Use github.io mirror instead of raw.githubusercontent.")]
     [Alias("m")]
     [switch]$mirror,
@@ -5913,6 +5916,60 @@ app.autostart-mode="off"
     }
 
 }
+
+function Install-SpotXWindowHelper {
+    param([string]$SpotifyDirectory, [switch]$Disabled)
+    if ($Disabled) { return }
+    $arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+    if ($arch -ne 'AMD64' -or [int](Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').CurrentBuildNumber -lt 22000) { return }
+    $standard = Join-Path $env:APPDATA 'Spotify'
+    if ([IO.Path]::GetFullPath($SpotifyDirectory).TrimEnd('\') -ine [IO.Path]::GetFullPath($standard).TrimEnd('\')) {
+        Write-Warning 'Automatic window repairs currently support only the standard Spotify installation path.'
+        return
+    }
+    $cef = Join-Path $SpotifyDirectory 'libcef.dll'
+    if (-not (Test-Path -LiteralPath $cef) -or (Get-FileHash -LiteralPath $cef -Algorithm SHA256).Hash -ne 'EB2F59B8997949875C4829A5DC0448600BABA3B9F24F8FD0B45A1DC9388AAF73') {
+        Write-Host 'Window repairs: this CEF build is not verified; native repair skipped.'
+        return
+    }
+    # Immutable, reviewable source bundle from this fork. No moving-branch code is compiled.
+    $bundleCommit = '8fffb63a3760718c8b7edffdaf0603332f3acccd'
+    $hashes = @{
+        'Install-SpotifyWindowHelper.ps1' = '97D4B59C55FC97C2674EA3EC65BFB919CA0BBB507122ABDAA32282FE65D0F23F'
+        'Uninstall-SpotifyWindowHelper.ps1' = '23CB0B694997A503FED59DD6B20DA46CB943DD94928FDC2795FB3275A566FA34'
+        'SpotifyWindowHelper.cs' = 'D2D97E74F4221BF4DF9A15BBB5A9C762216AB6208C3DEEB2BCE654BEE43E2BC3'
+        'SpotifyFrameGuard.Native.cs' = 'B77E3A2CF39C74D400E03A47763199395F48E1E574A4BF6B295AB06136F21AAB'
+    }
+    $stage = Join-Path ([IO.Path]::GetTempPath()) ('SpotXWindowSources-' + [Guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $stage | Out-Null
+        foreach ($name in $hashes.Keys) {
+            $destination = Join-Path $stage $name
+            $local = if ($PSScriptRoot) { Join-Path (Join-Path $PSScriptRoot 'scripts') $name } else { $null }
+            if ($local -and (Test-Path -LiteralPath $local) -and (Get-FileHash -LiteralPath $local -Algorithm SHA256).Hash -eq $hashes[$name]) {
+                Copy-Item -LiteralPath $local -Destination $destination
+            } else {
+                $url = 'https://raw.githubusercontent.com/ardacarofficial/SpotX/' + $bundleCommit + '/scripts/' + $name
+                Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $destination -ErrorAction Stop
+            }
+            if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne $hashes[$name]) { throw ('Window helper source hash mismatch: ' + $name) }
+        }
+        $ps64 = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        if (-not [Environment]::Is64BitProcess) { $ps64 = Join-Path $env:WINDIR 'Sysnative\WindowsPowerShell\v1.0\powershell.exe' }
+        & $ps64 -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $stage 'Install-SpotifyWindowHelper.ps1')
+        if ($LASTEXITCODE -ne 0) { throw 'Persistent window helper installation failed.' }
+    } catch { Write-Warning ('Window repairs were not installed: ' + $_.Exception.Message) }
+    finally {
+        $absolute = [IO.Path]::GetFullPath($stage)
+        $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+        if ($absolute.StartsWith($tempRoot,[StringComparison]::OrdinalIgnoreCase) -and [IO.Path]::GetFileName($absolute).StartsWith('SpotXWindowSources-') -and (Test-Path -LiteralPath $absolute)) {
+            Remove-Item -LiteralPath $absolute -Recurse -Force
+        }
+    }
+}
+
+# Persistent window repairs for the verified Windows 11/x64 client.
+Install-SpotXWindowHelper -SpotifyDirectory $spotifyDirectory -Disabled:$window_fixes_off
 
 # Start Spotify
 if ($start_spoti) { Start-Process -WorkingDirectory $spotifyDirectory -FilePath $spotifyExecutable }

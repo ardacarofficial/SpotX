@@ -1,0 +1,27 @@
+name: Validate compiled window repairs
+on:
+  pull_request:
+    paths: ['scripts/*Spotify*.ps1', 'scripts/Spotify*.cs', 'tests/*', 'run.ps1', 'Uninstall.bat', '.github/workflows/window-helper.yml']
+  push:
+    paths: ['scripts/*Spotify*.ps1', 'scripts/Spotify*.cs', 'tests/*', 'run.ps1', 'Uninstall.bat', '.github/workflows/window-helper.yml']
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell and execute native wrapper tests
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($path in @('run.ps1') + @(Get-ChildItem scripts/*Spotify*.ps1 | ForEach-Object FullName)) {
+            $tokens = $null; $errors = $null
+            [void][Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { throw ($errors | Out-String) }
+          }
+          & .\tests\Test-SpotifyFrameGuard.ps1
+      - name: Compile x64 Windows helper
+        shell: powershell
+        run: |
+          $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          & $compiler /nologo /target:winexe /platform:x64 /r:System.Web.Extensions.dll /out:SpotifyWindowHelper.exe (Join-Path $PWD 'scripts\SpotifyWindowHelper.cs') (Join-Path $PWD 'scripts\SpotifyFrameGuard.Native.cs')
+          if ($LASTEXITCODE -ne 0) { throw 'Compilation failed.' }
