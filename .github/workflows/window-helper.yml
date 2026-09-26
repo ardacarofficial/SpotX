@@ -18,6 +18,8 @@ jobs:
             [void][Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
             if ($errors.Count) { throw ($errors | Out-String) }
           }
+          & .\scripts\Build-SpotifyWindowHelperBundle.ps1 -Check
+          & .\tests\Test-WindowHelperBundle.ps1
           & .\tests\Test-SpotifyFrameGuard.ps1
       - name: Compile x64 Windows helper
         shell: powershell
